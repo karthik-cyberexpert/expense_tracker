@@ -19,7 +19,6 @@ import {
   DollarSign,
   CreditCard,
   Package,
-  LogOut,
   Pencil,
   Trash2,
 } from "lucide-react";
@@ -49,6 +48,7 @@ import {
   TransactionFilters,
   type Filters,
 } from "@/components/transaction-filters";
+import { UserNav } from "@/components/user-nav";
 
 export type Transaction = {
   id: string;
@@ -207,21 +207,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLogout = async () => {
-    toast("Logging out...");
-    await supabase.auth.signOut();
-    setTransactions([]);
-    router.push("/login");
-  };
-
-  const handleFilterChange = (newFilters: Partial<Filters>) => {
-    setFilters((prev) => ({ ...prev, ...newFilters }));
-  };
-
-  const handleClearFilters = () => {
-    setFilters(initialFilters);
-  };
-
   const totalBalance = React.useMemo(() => {
     return transactions.reduce(
       (acc, transaction) => acc + transaction.amount,
@@ -253,7 +238,7 @@ export default function DashboardPage() {
           <Skeleton className="h-9 w-48" />
           <div className="flex items-center gap-4">
             <Skeleton className="h-10 w-36" />
-            <Skeleton className="h-10 w-10" />
+            <Skeleton className="h-10 w-10 rounded-full" />
           </div>
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
@@ -282,10 +267,7 @@ export default function DashboardPage() {
             <TransactionDialog onFormSubmit={handleFormSubmit}>
               <Button>Add Transaction</Button>
             </TransactionDialog>
-            <Button variant="outline" size="icon" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-              <span className="sr-only">Logout</span>
-            </Button>
+            <UserNav />
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
