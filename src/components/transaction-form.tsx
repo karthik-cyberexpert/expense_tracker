@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
+import type { Transaction } from "@/app/page";
 
 const formSchema = z.object({
   description: z.string().min(2, {
@@ -42,21 +43,29 @@ const formSchema = z.object({
   type: z.enum(["expense", "income"]),
 });
 
-export type ExpenseFormValues = z.infer<typeof formSchema>;
+export type TransactionFormValues = z.infer<typeof formSchema>;
 
-interface AddExpenseFormProps {
-  onSubmit: (values: ExpenseFormValues) => void;
+interface TransactionFormProps {
+  onSubmit: (values: TransactionFormValues) => void;
+  initialData?: Partial<Transaction>;
+  buttonText?: string;
 }
 
-export function AddExpenseForm({ onSubmit }: AddExpenseFormProps) {
-  const form = useForm<ExpenseFormValues>({
+export function TransactionForm({
+  onSubmit,
+  initialData,
+  buttonText = "Add Transaction",
+}: TransactionFormProps) {
+  const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      description: "",
-      amount: 0,
-      date: new Date(),
-      category: "",
-      type: "expense",
+      description: initialData?.description ?? "",
+      amount: initialData?.amount ? Math.abs(initialData.amount) : 0,
+      date: initialData?.date
+        ? new Date(initialData.date.replace(/-/g, "/"))
+        : new Date(),
+      category: initialData?.category ?? "",
+      type: initialData?.type ?? "expense",
     },
   });
 
@@ -153,7 +162,10 @@ export function AddExpenseForm({ onSubmit }: AddExpenseFormProps) {
               <FormItem>
                 <FormLabel>Type</FormLabel>
                 <Select
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue("category", ""); // Reset category on type change
+                  }}
                   defaultValue={field.value}
                 >
                   <FormControl>
@@ -176,10 +188,7 @@ export function AddExpenseForm({ onSubmit }: AddExpenseFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Category</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a category" />
@@ -202,7 +211,7 @@ export function AddExpenseForm({ onSubmit }: AddExpenseFormProps) {
           />
         </div>
         <Button type="submit" className="w-full">
-          Add Transaction
+          {buttonText}
         </Button>
       </form>
     </Form>

@@ -15,10 +15,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, CreditCard, Package, LogOut } from "lucide-react";
+import {
+  DollarSign,
+  CreditCard,
+  Package,
+  LogOut,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { AddTransactionDialog } from "@/components/add-transaction-dialog";
-import { ExpenseFormValues } from "@/components/add-expense-form";
+import { TransactionDialog } from "@/components/transaction-dialog";
+import { TransactionFormValues } from "@/components/transaction-form";
 import { format } from "date-fns";
 import { ExpenseChart } from "@/components/expense-chart";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +34,17 @@ import type { Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export type Transaction = {
   id: string;
@@ -99,13 +117,16 @@ export default function DashboardPage() {
     }
   }, [session, fetchTransactions]);
 
-  const handleAddTransaction = async (data: ExpenseFormValues) => {
+  const handleFormSubmit = async (
+    data: TransactionFormValues,
+    transactionId?: string
+  ) => {
     if (!session) return;
 
     const amount =
       data.type === "expense" ? -Math.abs(data.amount) : Math.abs(data.amount);
 
-    const newTransaction = {
+    const transactionData = {
       user_id: session.user.id,
       description: data.description,
       category: data.category,
@@ -114,14 +135,44 @@ export default function DashboardPage() {
       type: data.type,
     };
 
+    if (transactionId) {
+      // Update existing transaction
+      const { error } = await supabase
+        .from("transactions")
+        .update(transactionData)
+        .eq("id", transactionId);
+
+      if (error) {
+        toast.error(`Failed to update transaction: ${error.message}`);
+      } else {
+        toast.success("Transaction updated successfully!");
+        fetchTransactions();
+      }
+    } else {
+      // Add new transaction
+      const { error } = await supabase
+        .from("transactions")
+        .insert([transactionData]);
+
+      if (error) {
+        toast.error(`Failed to add transaction: ${error.message}`);
+      } else {
+        toast.success("Transaction added successfully!");
+        fetchTransactions();
+      }
+    }
+  };
+
+  const handleDeleteTransaction = async (transactionId: string) => {
     const { error } = await supabase
       .from("transactions")
-      .insert([newTransaction]);
+      .delete()
+      .eq("id", transactionId);
 
     if (error) {
-      toast.error(`Failed to add transaction: ${error.message}`);
+      toast.error(`Failed to delete transaction: ${error.message}`);
     } else {
-      toast.success("Transaction added successfully!");
+      toast.success("Transaction deleted successfully!");
       fetchTransactions();
     }
   };
@@ -147,7 +198,7 @@ export default function DashboardPage() {
 
     return transactions
       .filter((t) => {
-        const transactionDate = new Date(t.date);
+        const transactionDate = new Date(t.date.replace(/-/g, "/"));
         return (
           transactionDate.getMonth() === currentMonth &&
           transactionDate.getFullYear() === currentYear &&
@@ -190,7 +241,9 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <div className="flex items-center gap-4">
-            <AddTransactionDialog onFormSubmit={handleAddTransaction} />
+            <TransactionDialog onFormSubmit={handleFormSubmit}>
+              <Button>Add Transaction</Button>
+            </TransactionDialog>
             <Button variant="outline" size="icon" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
               <span className="sr-only">Logout</span>
@@ -265,6 +318,7 @@ export default function DashboardPage() {
                       <TableHead>Category</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -293,11 +347,55 @@ export default function DashboardPage() {
                               currency: "USD",
                             })}
                           </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <TransactionDialog
+                                transaction={transaction}
+                                onFormSubmit={handleFormSubmit}
+                              >
+                                <Button variant="ghost" size="icon">
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">Edit</span>
+                                </Button>
+                              </TransactionDialog>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Delete</span>
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Are you sure?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This action cannot be undone. This will
+                                      permanently delete this transaction.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Cancel
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        handleDeleteTransaction(transaction.id)
+                                      }
+                                    >
+                                      Continue
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
+                        <TableCell colSpan={5} className="h-24 text-center">
                           No transactions yet. Add one to get started!
                         </TableCell>
                       </TableRow>
