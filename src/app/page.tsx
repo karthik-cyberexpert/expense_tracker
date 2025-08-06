@@ -45,6 +45,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  TransactionFilters,
+  type Filters,
+} from "@/components/transaction-filters";
 
 export type Transaction = {
   id: string;
@@ -57,10 +61,19 @@ export type Transaction = {
   type: "income" | "expense";
 };
 
+const initialFilters: Filters = {
+  type: "all",
+  category: "all",
+  startDate: undefined,
+  endDate: undefined,
+};
+
 export default function DashboardPage() {
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [session, setSession] = React.useState<Session | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [filters, setFilters] = React.useState<Filters>(initialFilters);
+  const [uniqueCategories, setUniqueCategories] = React.useState<string[]>([]);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -87,14 +100,42 @@ export default function DashboardPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
+  const fetchUniqueCategories = React.useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase.from("transactions").select("category");
+
+    if (error) {
+      toast.error("Failed to load categories.");
+      console.error("Category fetch error:", error.message);
+    } else {
+      const unique = [...new Set(data.map((item) => item.category))].sort();
+      setUniqueCategories(unique);
+    }
+  }, [session]);
+
   const fetchTransactions = React.useCallback(async () => {
     if (!session) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("transactions")
         .select("*")
         .order("date", { ascending: false });
+
+      if (filters.type !== "all") {
+        query = query.eq("type", filters.type);
+      }
+      if (filters.category !== "all") {
+        query = query.eq("category", filters.category);
+      }
+      if (filters.startDate) {
+        query = query.gte("date", format(filters.startDate, "yyyy-MM-dd"));
+      }
+      if (filters.endDate) {
+        query = query.lte("date", format(filters.endDate, "yyyy-MM-dd"));
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         toast.error("Failed to fetch transactions.");
@@ -109,13 +150,14 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session, filters]);
 
   React.useEffect(() => {
     if (session) {
       fetchTransactions();
+      fetchUniqueCategories();
     }
-  }, [session, fetchTransactions]);
+  }, [session, fetchTransactions, fetchUniqueCategories]);
 
   const handleFormSubmit = async (
     data: TransactionFormValues,
@@ -135,31 +177,18 @@ export default function DashboardPage() {
       type: data.type,
     };
 
-    if (transactionId) {
-      // Update existing transaction
-      const { error } = await supabase
-        .from("transactions")
-        .update(transactionData)
-        .eq("id", transactionId);
+    const promise = transactionId
+      ? supabase.from("transactions").update(transactionData).eq("id", transactionId)
+      : supabase.from("transactions").insert([transactionData]);
 
-      if (error) {
-        toast.error(`Failed to update transaction: ${error.message}`);
-      } else {
-        toast.success("Transaction updated successfully!");
-        fetchTransactions();
-      }
+    const { error } = await promise;
+
+    if (error) {
+      toast.error(`Failed to ${transactionId ? "update" : "add"} transaction: ${error.message}`);
     } else {
-      // Add new transaction
-      const { error } = await supabase
-        .from("transactions")
-        .insert([transactionData]);
-
-      if (error) {
-        toast.error(`Failed to add transaction: ${error.message}`);
-      } else {
-        toast.success("Transaction added successfully!");
-        fetchTransactions();
-      }
+      toast.success(`Transaction ${transactionId ? "updated" : "added"} successfully!`);
+      fetchTransactions();
+      fetchUniqueCategories();
     }
   };
 
@@ -174,6 +203,7 @@ export default function DashboardPage() {
     } else {
       toast.success("Transaction deleted successfully!");
       fetchTransactions();
+      fetchUniqueCategories();
     }
   };
 
@@ -182,6 +212,14 @@ export default function DashboardPage() {
     await supabase.auth.signOut();
     setTransactions([]);
     router.push("/login");
+  };
+
+  const handleFilterChange = (newFilters: Partial<Filters>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters(initialFilters);
   };
 
   const totalBalance = React.useMemo(() => {
@@ -306,6 +344,14 @@ export default function DashboardPage() {
         </div>
         <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
           <div className="xl:col-span-2">
+            <div className="mb-4">
+              <TransactionFilters
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                categories={uniqueCategories}
+                onClearFilters={handleClearFilters}
+              />
+            </div>
             <Card>
               <CardHeader>
                 <CardTitle>Recent Transactions</CardTitle>
@@ -396,7 +442,7 @@ export default function DashboardPage() {
                     ) : (
                       <TableRow>
                         <TableCell colSpan={5} className="h-24 text-center">
-                          No transactions yet. Add one to get started!
+                          No transactions found for the selected filters.
                         </TableCell>
                       </TableRow>
                     )}
