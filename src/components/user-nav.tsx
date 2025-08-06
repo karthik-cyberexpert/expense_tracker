@@ -88,8 +88,7 @@ export function UserNav() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", session.user.id)
-      .select()
-      .single();
+      .select();
 
     setIsSubmitting(false);
 
@@ -97,7 +96,9 @@ export function UserNav() {
       toast.error(`Failed to update profile: ${error.message}`);
     } else {
       toast.success("Profile updated successfully!");
-      setProfile(data); // Update state directly with returned data
+      if (data && data.length > 0) {
+        setProfile(data[0]);
+      }
       setIsProfileDialogOpen(false);
     }
   };
