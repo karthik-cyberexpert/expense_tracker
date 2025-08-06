@@ -207,6 +207,14 @@ export default function DashboardPage() {
     }
   };
 
+  const handleFilterChange = (newFilters: Partial<Filters>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters(initialFilters);
+  };
+
   const totalBalance = React.useMemo(() => {
     return transactions.reduce(
       (acc, transaction) => acc + transaction.amount,
