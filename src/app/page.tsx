@@ -20,6 +20,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { ExpenseFormValues } from "@/components/add-expense-form";
 import { format } from "date-fns";
+import { ExpenseChart } from "@/components/expense-chart";
 
 // Mock data for now
 const initialTransactions = [
@@ -161,47 +162,52 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Transactions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell className="font-medium">
-                        {transaction.description}
-                      </TableCell>
-                      <TableCell>{transaction.category}</TableCell>
-                      <TableCell>{transaction.date}</TableCell>
-                      <TableCell
-                        className={`text-right ${
-                          transaction.amount > 0
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }`}
-                      >
-                        {transaction.amount.toLocaleString("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                        })}
-                      </TableCell>
+        <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="xl:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions.map((transaction) => (
+                      <TableRow key={transaction.id}>
+                        <TableCell className="font-medium">
+                          {transaction.description}
+                        </TableCell>
+                        <TableCell>{transaction.category}</TableCell>
+                        <TableCell>{transaction.date}</TableCell>
+                        <TableCell
+                          className={`text-right ${
+                            transaction.amount > 0
+                              ? "text-green-500"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {transaction.amount.toLocaleString("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                          })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="xl:col-span-1">
+            <ExpenseChart transactions={transactions} />
+          </div>
         </div>
       </main>
       <MadeWithDyad />
