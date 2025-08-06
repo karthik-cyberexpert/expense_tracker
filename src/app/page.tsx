@@ -76,6 +76,30 @@ export default function DashboardPage() {
     setTransactions((prev) => [newTransaction, ...prev]);
   };
 
+  const totalBalance = React.useMemo(() => {
+    return transactions.reduce(
+      (acc, transaction) => acc + transaction.amount,
+      0
+    );
+  }, [transactions]);
+
+  const monthlySpending = React.useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return transactions
+      .filter((t) => {
+        const transactionDate = new Date(t.date);
+        return (
+          transactionDate.getMonth() === currentMonth &&
+          transactionDate.getFullYear() === currentYear &&
+          t.amount < 0
+        );
+      })
+      .reduce((acc, transaction) => acc + transaction.amount, 0);
+  }, [transactions]);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -92,9 +116,14 @@ export default function DashboardPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$45,231.89</div>
+              <div className="text-2xl font-bold">
+                {totalBalance.toLocaleString("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                })}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +20.1% from last month
+                Based on all transactions
               </p>
             </CardContent>
           </Card>
@@ -106,9 +135,14 @@ export default function DashboardPage() {
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">-$2,350.45</div>
+              <div className="text-2xl font-bold">
+                {monthlySpending.toLocaleString("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                })}
+              </div>
               <p className="text-xs text-muted-foreground">
-                -10.5% from last month
+                For the current month
               </p>
             </CardContent>
           </Card>
@@ -120,9 +154,9 @@ export default function DashboardPage() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+573</div>
+              <div className="text-2xl font-bold">{transactions.length}</div>
               <p className="text-xs text-muted-foreground">
-                +19 since last month
+                Total transactions recorded
               </p>
             </CardContent>
           </Card>
