@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card";
 
 interface Transaction {
-  id: number;
+  id: string;
   date: string;
   description: string;
   category: string;
