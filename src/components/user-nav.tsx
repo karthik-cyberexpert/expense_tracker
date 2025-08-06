@@ -80,14 +80,16 @@ export function UserNav() {
     if (!session) return;
     setIsSubmitting(true);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .update({
         first_name: values.first_name,
         last_name: values.last_name,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", session.user.id);
+      .eq("id", session.user.id)
+      .select()
+      .single();
 
     setIsSubmitting(false);
 
@@ -95,7 +97,7 @@ export function UserNav() {
       toast.error(`Failed to update profile: ${error.message}`);
     } else {
       toast.success("Profile updated successfully!");
-      fetchProfile(); // Re-fetch profile to update UI
+      setProfile(data); // Update state directly with returned data
       setIsProfileDialogOpen(false);
     }
   };
