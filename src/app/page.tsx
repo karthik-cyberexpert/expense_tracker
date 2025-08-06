@@ -1,4 +1,6 @@
-import { Button } from "@/components/ui/button";
+"use client";
+
+import * as React from "react";
 import {
   Card,
   CardContent,
@@ -15,53 +17,71 @@ import {
 } from "@/components/ui/table";
 import { DollarSign, CreditCard, Package } from "lucide-react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
+import { AddTransactionDialog } from "@/components/add-transaction-dialog";
+import { ExpenseFormValues } from "@/components/add-expense-form";
+import { format } from "date-fns";
+
+// Mock data for now
+const initialTransactions = [
+  {
+    id: 1,
+    date: "2024-07-26",
+    description: "Groceries",
+    category: "Food",
+    amount: -75.42,
+  },
+  {
+    id: 2,
+    date: "2024-07-25",
+    description: "Salary",
+    category: "Income",
+    amount: 2500.0,
+  },
+  {
+    id: 3,
+    date: "2024-07-24",
+    description: "Netflix Subscription",
+    category: "Entertainment",
+    amount: -15.99,
+  },
+  {
+    id: 4,
+    date: "2024-07-23",
+    description: "Gasoline",
+    category: "Transport",
+    amount: -50.12,
+  },
+  {
+    id: 5,
+    date: "2024-07-22",
+    description: "Dinner with friends",
+    category: "Food",
+    amount: -120.0,
+  },
+];
 
 export default function DashboardPage() {
-  // Mock data for now
-  const transactions = [
-    {
-      id: 1,
-      date: "2024-07-26",
-      description: "Groceries",
-      category: "Food",
-      amount: -75.42,
-    },
-    {
-      id: 2,
-      date: "2024-07-25",
-      description: "Salary",
-      category: "Income",
-      amount: 2500.0,
-    },
-    {
-      id: 3,
-      date: "2024-07-24",
-      description: "Netflix Subscription",
-      category: "Entertainment",
-      amount: -15.99,
-    },
-    {
-      id: 4,
-      date: "2024-07-23",
-      description: "Gasoline",
-      category: "Transport",
-      amount: -50.12,
-    },
-    {
-      id: 5,
-      date: "2024-07-22",
-      description: "Dinner with friends",
-      category: "Food",
-      amount: -120.0,
-    },
-  ];
+  const [transactions, setTransactions] = React.useState(initialTransactions);
+
+  const handleAddTransaction = (data: ExpenseFormValues) => {
+    const amount =
+      data.type === "expense" ? -Math.abs(data.amount) : Math.abs(data.amount);
+    const newTransaction = {
+      id: transactions.length + 1,
+      description: data.description,
+      category: data.category,
+      date: format(data.date, "yyyy-MM-dd"),
+      amount: amount,
+    };
+    setTransactions((prev) => [newTransaction, ...prev]);
+  };
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <Button>Add Expense</Button>
+          <AddTransactionDialog onFormSubmit={handleAddTransaction} />
         </div>
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
           <Card>
