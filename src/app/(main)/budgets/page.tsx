@@ -33,15 +33,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Budget } from "@/types";
+import type { Budget, Transaction } from "@/types";
 import { BudgetDialog } from "@/components/budget-dialog";
 import { BudgetFormValues } from "@/components/budget-form";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 export default function BudgetsPage() {
   const [budgets, setBudgets] = React.useState<Budget[]>([]);
+  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  const fetchBudgets = React.useCallback(async () => {
+  const fetchData = React.useCallback(async () => {
     setLoading(true);
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) {
@@ -49,23 +52,68 @@ export default function BudgetsPage() {
       return;
     }
 
-    const { data, error } = await supabase
+    const budgetsPromise = supabase
       .from("budgets")
       .select("*")
       .order("period", { ascending: false });
+    const transactionsPromise = supabase.from("transactions").select("*");
 
-    if (error) {
+    const [budgetsResult, transactionsResult] = await Promise.all([
+      budgetsPromise,
+      transactionsPromise,
+    ]);
+
+    if (budgetsResult.error) {
       toast.error("Failed to fetch budgets.");
-      console.error("Fetch error:", error.message);
+      console.error("Fetch error:", budgetsResult.error.message);
     } else {
-      setBudgets(data.map(b => ({...b, amount: Number(b.amount)})));
+      setBudgets(budgetsResult.data.map((b) => ({ ...b, amount: Number(b.amount) })));
     }
+
+    if (transactionsResult.error) {
+      toast.error("Failed to fetch transactions.");
+    } else {
+      setTransactions(
+        transactionsResult.data.map((t) => ({ ...t, amount: Number(t.amount) }))
+      );
+    }
+
     setLoading(false);
   }, []);
 
   React.useEffect(() => {
-    fetchBudgets();
-  }, [fetchBudgets]);
+    fetchData();
+  }, [fetchData]);
+
+  const budgetsWithSpending = React.useMemo(() => {
+    return budgets.map((budget) => {
+      const budgetPeriod = new Date(budget.period.replace(/-/g, "/"));
+      const budgetMonth = budgetPeriod.getMonth();
+      const budgetYear = budgetPeriod.getFullYear();
+
+      const spent = transactions
+        .filter((t) => {
+          const transactionDate = new Date(t.date.replace(/-/g, "/"));
+          return (
+            t.type === "expense" &&
+            t.category === budget.category &&
+            transactionDate.getMonth() === budgetMonth &&
+            transactionDate.getFullYear() === budgetYear
+          );
+        })
+        .reduce((acc, t) => acc + Math.abs(t.amount), 0);
+
+      const remaining = budget.amount - spent;
+      const progress = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
+
+      return {
+        ...budget,
+        spent,
+        remaining,
+        progress,
+      };
+    });
+  }, [budgets, transactions]);
 
   const handleFormSubmit = async (
     values: BudgetFormValues,
@@ -78,7 +126,10 @@ export default function BudgetsPage() {
       user_id: sessionData.session.user.id,
       category: values.category,
       amount: values.amount,
-      period: format(new Date(values.period.getFullYear(), values.period.getMonth(), 1), "yyyy-MM-dd"),
+      period: format(
+        new Date(values.period.getFullYear(), values.period.getMonth(), 1),
+        "yyyy-MM-dd"
+      ),
     };
 
     const promise = budgetId
@@ -88,27 +139,32 @@ export default function BudgetsPage() {
     const { error } = await promise;
 
     if (error) {
-      toast.error(`Failed to ${budgetId ? "update" : "add"} budget: ${error.message}`);
+      toast.error(
+        `Failed to ${budgetId ? "update" : "add"} budget: ${error.message}`
+      );
     } else {
       toast.success(`Budget ${budgetId ? "updated" : "added"} successfully!`);
-      fetchBudgets();
+      fetchData();
     }
   };
 
   const handleDeleteBudget = async (budgetId: string) => {
-    const { error } = await supabase.from("budgets").delete().eq("id", budgetId);
+    const { error } = await supabase
+      .from("budgets")
+      .delete()
+      .eq("id", budgetId);
 
     if (error) {
       toast.error(`Failed to delete budget: ${error.message}`);
     } else {
       toast.success("Budget deleted successfully!");
-      fetchBudgets();
+      fetchData();
     }
   };
 
   if (loading) {
     return (
-      <div>
+      <div className="p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <Skeleton className="h-9 w-48" />
           <Skeleton className="h-10 w-32" />
@@ -131,7 +187,7 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div>
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-3xl font-bold tracking-tight">Budgets</h1>
         <BudgetDialog onFormSubmit={handleFormSubmit}>
@@ -149,22 +205,61 @@ export default function BudgetsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Month</TableHead>
+                <TableHead className="w-[120px]">Month</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-[250px]">Progress</TableHead>
+                <TableHead className="text-right">Budgeted</TableHead>
+                <TableHead className="text-right">Spent</TableHead>
+                <TableHead className="text-right">Remaining</TableHead>
+                <TableHead className="text-right w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {budgets.length > 0 ? (
-                budgets.map((budget) => (
+              {budgetsWithSpending.length > 0 ? (
+                budgetsWithSpending.map((budget) => (
                   <TableRow key={budget.id}>
                     <TableCell className="font-medium">
-                      {format(new Date(budget.period), "MMMM yyyy")}
+                      {format(new Date(budget.period.replace(/-/g, "/")), "MMMM yyyy")}
                     </TableCell>
                     <TableCell>{budget.category}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress
+                          value={budget.progress}
+                          className={cn(
+                            "h-2",
+                            budget.progress > 90 && "bg-red-500/20",
+                            budget.progress > 75 && budget.progress <= 90 && "bg-yellow-500/20"
+                          )}
+                          indicatorClassName={cn(
+                            budget.progress > 90 && "bg-red-500",
+                            budget.progress > 75 && budget.progress <= 90 && "bg-yellow-500"
+                          )}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {Math.round(budget.progress)}%
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       {budget.amount.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {budget.spent.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-right",
+                        budget.remaining < 0 && "text-red-500"
+                      )}
+                    >
+                      {budget.remaining.toLocaleString("en-US", {
                         style: "currency",
                         currency: "USD",
                       })}
@@ -189,7 +284,9 @@ export default function BudgetsPage() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogTitle>
+                                Are you sure?
+                              </AlertDialogTitle>
                               <AlertDialogDescription>
                                 This action cannot be undone. This will
                                 permanently delete this budget.
@@ -211,7 +308,7 @@ export default function BudgetsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     No budgets created yet.
                   </TableCell>
                 </TableRow>
