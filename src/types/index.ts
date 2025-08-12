@@ -17,3 +17,13 @@ export type Budget = {
   period: string; // YYYY-MM-DD
   created_at: string;
 };
+
+export type Goal = {
+  id: string;
+  user_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null; // YYYY-MM-DD
+  created_at: string;
+};

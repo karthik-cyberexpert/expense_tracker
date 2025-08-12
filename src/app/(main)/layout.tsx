@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Menu, Wallet } from "lucide-react";
+import { Home, Menu, Wallet, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -16,6 +16,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/budgets", label: "Budgets", icon: Wallet },
+  { href: "/goals", label: "Goals", icon: Target },
 ];
 
 export default function MainLayout({
