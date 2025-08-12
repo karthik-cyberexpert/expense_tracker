@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TransactionForm, TransactionFormValues } from "./transaction-form";
-import type { Transaction } from "@/app/page";
+import type { Transaction } from "@/types";
 
 interface TransactionDialogProps {
   children: React.ReactNode;

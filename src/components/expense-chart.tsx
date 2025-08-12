@@ -15,14 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-interface Transaction {
-  id: string;
-  date: string;
-  description: string;
-  category: string;
-  amount: number;
-}
+import type { Transaction } from "@/types";
 
 interface ExpenseChartProps {
   transactions: Transaction[];

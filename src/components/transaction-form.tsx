@@ -29,7 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
-import type { Transaction } from "@/app/page";
+import type { Transaction } from "@/types";
 
 const formSchema = z.object({
   description: z.string().min(2, {
