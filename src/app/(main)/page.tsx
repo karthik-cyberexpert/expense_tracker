@@ -21,6 +21,7 @@ import {
   Package,
   Pencil,
   Trash2,
+  Download,
 } from "lucide-react";
 import { TransactionDialog } from "@/components/transaction-dialog";
 import { TransactionFormValues } from "@/components/transaction-form";
@@ -195,6 +196,53 @@ export default function DashboardPage() {
     }
   };
 
+  const handleExport = () => {
+    if (transactions.length === 0) {
+      toast.info("No transactions to export.");
+      return;
+    }
+
+    const headers = [
+      "ID",
+      "Date",
+      "Description",
+      "Category",
+      "Type",
+      "Amount",
+      "User ID",
+      "Created At",
+    ];
+    const csvRows = [headers.join(",")];
+
+    for (const transaction of transactions) {
+      const values = [
+        transaction.id,
+        transaction.date,
+        `"${transaction.description.replace(/"/g, '""')}"`,
+        transaction.category,
+        transaction.type,
+        transaction.amount,
+        transaction.user_id,
+        transaction.created_at,
+      ];
+      csvRows.push(values.join(","));
+    }
+
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    link.setAttribute("download", `transactions-${timestamp}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Transactions exported successfully!");
+  };
+
   const handleFilterChange = (newFilters: Partial<Filters>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   };
@@ -255,9 +303,15 @@ export default function DashboardPage() {
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <TransactionDialog onFormSubmit={handleFormSubmit}>
-          <Button>Add Transaction</Button>
-        </TransactionDialog>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+          <TransactionDialog onFormSubmit={handleFormSubmit}>
+            <Button>Add Transaction</Button>
+          </TransactionDialog>
+        </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
         <Card>
